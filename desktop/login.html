@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudBridge Login</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    h2 {
+      margin: 0 0 6px;
+      text-align: center;
+      font-size: 22px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #334155;
+      border-radius: 7px;
+      background: #1e293b;
+      color: white;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #loginBtn {
+      background: #6366f1;
+      color: white;
+    }
+
+    #googleBtn {
+      background: white;
+      color: #1f2937;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 5px 0 12px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #334155;
+    }
+
+    #error {
+      color: #fca5a5;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    #status {
+      color: #a5b4fc;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>CloudBridge</h2>
+  <div class="subtitle">Sign in to continue</div>
+
+  <button id="googleBtn" type="button">
+    Continue with Google
+  </button>
+
+  <div class="divider">OR USE EMAIL</div>
+
+  <input id="email" type="email" placeholder="Email address" autocomplete="username" />
+
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+
+  <button id="loginBtn" type="button">Log in</button>
+
+  <p id="status" role="status"></p>
+  <p id="error" role="alert"></p>
+
+  <script src="./login-renderer.js"></script>
+</body>
+
+</html>

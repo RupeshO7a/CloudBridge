@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+    body {
+        font-family: "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 20px;
+        margin: 0;
+    }
+    h2 { margin: 0 0 8px; font-size: 19px; }
+    .muted { color: #94a3b8; font-size: 13px; }
+    .panel {
+        background: #1e293b;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 16px 0;
+        overflow-wrap: anywhere;
+    }
+    #preview {
+        max-height: 110px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-size: 13px;
+    }
+    .actions { display: flex; gap: 10px; }
+    button {
+        flex: 1;
+        border: 0;
+        border-radius: 7px;
+        padding: 11px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    #acceptBtn { background: #16a34a; color: white; }
+    #declineBtn { background: #334155; color: white; }
+    button:disabled { opacity: .5; cursor: wait; }
+    #status { margin-top: 12px; font-size: 12px; color: #cbd5e1; }
+</style>
+</head>
+<body>
+    <h2>Incoming CloudBridge share</h2>
+    <div class="muted" id="sender">Someone wants to share with you</div>
+
+    <div class="panel">
+        <div class="muted" id="kind">Shared content</div>
+        <p id="preview">Loading share details...</p>
+    </div>
+
+    <div class="actions">
+        <button id="acceptBtn">Accept</button>
+        <button id="declineBtn">Decline</button>
+    </div>
+
+    <div id="status" role="status"></div>
+
+    <script src="./incoming-share-renderer.js"></script>
+</body>
+</html>

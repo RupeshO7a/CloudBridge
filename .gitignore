@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+release/
+out/
+
+# Electron
+**/electron-builder-cache/
+**/electron-builder/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# IDE and editor
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Certificates and private keys
+*.pem
+*.p12
+*.pfx
+*.key
+
+# Temporary files
+*.tmp
+*.bak
+
+# Local backups
+desktop-backup/
+
+# Local configuration
+.env.local
+.env.development.local
+.env.production.local
+
+# Firebase private credentials
+firebase-service-account.json
+**/firebase-service-account.json
+service-account*.json
+**/service-account*.json
+
+# Secret and credential files
+*credentials*.json
+
+# Database backups
+*.dump
+*.backup
+
+# Generated AI agent instructions
+.agents/
+.claude/
+.cursor/
+.devin/
+.windsurf/
+**/.agents/
+**/.claude/
+**/.cursor/
+**/.devin/
+**/.windsurf/
+
+# Generated Prisma skills
+backend/skills-lock.json
