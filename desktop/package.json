@@ -1,11 +1,14 @@
 {
-  "name": "desktop",
+  "name": "cloudbridge",
   "version": "1.0.0",
   "description": "CloudBridge desktop application",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac"
   },
   "keywords": [],
   "author": "",
@@ -14,18 +17,26 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "dotenv": "^18.0.9",
-    "electron": "^45.0.0",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.7.3",
     "firebase": "^13.1.0",
     "node-fetch": "^2.7.0",
     "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
+    "electron": "^45.2.1",
     "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "com.cloudbridge.desktop",
     "productName": "CloudBridge",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "RupeshO7a",
+        "repo": "CloudBridge-Releases"
+      }
+    ],
     "protocols": [
       {
         "name": "CloudBridge Authentication",
@@ -34,16 +45,43 @@
         ]
       }
     ],
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ]
-    },
+    "files": [
+      "**/*",
+      "!**/.env",
+      "!**/.env.*",
+      "!**/node_modules/.cache/**",
+      "!**/*.backup",
+      "!**/*.phase1-backup",
+      "!**/.share-target-backup/**",
+      "!CloudBridgeShareTarget/**"
+    ],
     "win": {
+      "icon": "build/icons/icon.ico",
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "icon": "build/icons/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "mac": {
+      "icon": "build/icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities"
     }
   }
 }

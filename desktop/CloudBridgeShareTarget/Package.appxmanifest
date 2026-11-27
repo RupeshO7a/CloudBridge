@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10"
+    IgnorableNamespaces="uap rescap systemai">
+
+    <Identity
+        Name="dc868e16-9c51-40bb-b2cc-61a406856401"
+        Publisher="CN=rupes"
+        Version="1.0.2.0" />
+
+    <mp:PhoneIdentity
+        PhoneProductId="dc868e16-9c51-40bb-b2cc-61a406856401"
+        PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+    <Properties>
+        <DisplayName>CloudBridge</DisplayName>
+        <PublisherDisplayName>rupes</PublisherDisplayName>
+        <Logo>Assets\StoreLogo.png</Logo>
+    </Properties>
+
+    <Dependencies>
+        <TargetDeviceFamily
+            Name="Windows.Universal"
+            MinVersion="10.0.17763.0"
+            MaxVersionTested="10.0.26226.0" />
+
+        <TargetDeviceFamily
+            Name="Windows.Desktop"
+            MinVersion="10.0.17763.0"
+            MaxVersionTested="10.0.26226.0" />
+    </Dependencies>
+
+    <Resources>
+        <Resource Language="x-generate"/>
+    </Resources>
+
+    <Applications>
+        <Application
+            Id="App"
+            Executable="$targetnametoken$.exe"
+            EntryPoint="$targetentrypoint$">
+
+            <uap:VisualElements
+                DisplayName="CloudBridge"
+                Description="Share files with CloudBridge"
+                BackgroundColor="transparent"
+                Square150x150Logo="Assets\Square150x150Logo.scale-200.png"
+                Square44x44Logo="Assets\Square44x44Logo.scale-200.png">
+
+                <uap:DefaultTile
+                    Wide310x150Logo="Assets\Wide310x150Logo.scale-200.png" />
+
+                <uap:SplashScreen
+                    Image="Assets\SplashScreen.scale-200.png" />
+
+            </uap:VisualElements>
+
+            <!-- Windows 11 Share Target registration -->
+            <Extensions>
+                <uap:Extension Category="windows.shareTarget">
+                    <uap:ShareTarget Description="Share files with CloudBridge">
+
+                        <uap:SupportedFileTypes>
+                            <uap:SupportsAnyFileType />
+                        </uap:SupportedFileTypes>
+
+                        <uap:DataFormat>StorageItems</uap:DataFormat>
+
+                    </uap:ShareTarget>
+                </uap:Extension>
+            </Extensions>
+
+        </Application>
+    </Applications>
+
+    <Capabilities>
+     <rescap:Capability Name="runFullTrust" />
+    </Capabilities>
+
+</Package>

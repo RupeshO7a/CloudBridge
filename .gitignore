@@ -45,6 +45,23 @@ desktop.ini
 
 # Local backups
 desktop-backup/
+.share-target-backup/
+**/.share-target-backup/
+original-assets-backup/
+**/original-assets-backup/
+*.before-*
+*.phase1-backup
+
+# Visual Studio / .NET build & user files
+.vs/
+**/.vs/
+bin/
+**/bin/
+obj/
+**/obj/
+AppPackages/
+**/AppPackages/
+*.user
 
 # Local configuration
 .env.local

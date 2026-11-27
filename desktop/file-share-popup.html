@@ -1,132 +1,288 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CloudBridge - Share File</title>
 
     <style>
+        :root {
+            --peach: #F6DBC0;
+            --cream: #F8F4E9;
+            --muted: #D8C6D8;
+            --rose: #935073;
+            --bg: #17101C;
+            --panel: #211625;
+            --card: #302238;
+            --line: rgba(248, 244, 233, .14);
+        }
+
         * {
             box-sizing: border-box;
         }
 
+        html,
         body {
-            font-family: sans-serif;
-            background: #1e293b;
-            color: white;
-            padding: 18px;
+            width: 100%;
+            height: 100%;
             margin: 0;
+            overflow: hidden;
         }
 
-        h2 {
+        body {
+            padding: 11px;
+            color: var(--cream);
+            background:
+                radial-gradient(circle at top right,
+                    rgba(147, 80, 115, .18), transparent 48%),
+                var(--bg);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .popup {
+            width: 100%;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 9px;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--rose), #502D55);
+            color: var(--peach);
+            font-size: 19px;
+        }
+
+        .brand-name {
+            font-family: Georgia, serif;
             font-size: 20px;
-            margin: 0 0 8px;
+            font-weight: bold;
         }
 
-        p {
-            color: #94a3b8;
-            font-size: 12px;
+        .brand-tagline {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .eyebrow {
+            margin-bottom: 10px;
+            color: #D99CBE;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.6px;
+        }
+
+        .content-card {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: linear-gradient(145deg, var(--card), var(--panel));
+        }
+
+        .field {
+            margin-bottom: 10px;
         }
 
         label {
             display: block;
-            font-size: 12px;
-            margin-top: 15px;
+            margin-bottom: 6px;
+            color: var(--cream);
+            font-size: 13px;
+            font-weight: 600;
         }
 
-        input, select {
+        input,
+        select {
+            display: block;
             width: 100%;
             padding: 10px;
-            margin-top: 6px;
-            border: 1px solid #475569;
-            border-radius: 6px;
-            background: #0f172a;
-            color: white;
-            font: inherit;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            outline: none;
+            background: var(--bg);
+            color: var(--cream);
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--rose);
+            box-shadow: 0 0 0 2px rgba(147, 80, 115, .15);
+        }
+
+        input::placeholder {
+            color: #A18DA5;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        .file-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 53px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--bg);
+        }
+
+        .file-icon {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: rgba(147, 80, 115, .2);
+            color: var(--peach);
+            font-size: 18px;
+        }
+
+        #fileName {
+            min-width: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         button {
             width: 100%;
-            padding: 11px;
-            margin-top: 12px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
+            min-height: 38px;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
+            transition: background .2s;
         }
 
         #chooseBtn {
-            background: #0d9488;
-            color: white;
+            border: 1px solid rgba(147, 80, 115, .45);
+            background: rgba(147, 80, 115, .17);
+            color: var(--cream);
+        }
+
+        #chooseBtn:hover {
+            background: rgba(147, 80, 115, .32);
         }
 
         #sendFileBtn {
-            background: #6366f1;
-            color: white;
+            border: none;
+            background: var(--peach);
+            color: #281B30;
+        }
+
+        #sendFileBtn:hover:not(:disabled) {
+            background: #FFE7D1;
         }
 
         #closeBtn {
-            background: #334155;
-            color: white;
+            border: 1px solid var(--line);
+            background: rgba(147, 80, 115, .12);
+            color: var(--cream);
+        }
+
+        #closeBtn:hover {
+            background: rgba(147, 80, 115, .3);
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: .5;
             cursor: not-allowed;
         }
 
-        #fileName {
-            background: #0f172a;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            overflow-wrap: anywhere;
-            color: #cbd5e1;
-            min-height: 36px;
-        }
-
         #status {
+            min-height: 0;
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.4;
             overflow-wrap: anywhere;
-            color: #cbd5e1;
-            font-size: 12px;
         }
     </style>
 </head>
 
 <body>
 
-    <h2>Share a File</h2>
+    <main class="popup">
 
-    <p>Select a file and securely share it with another CloudBridge user.</p>
+        <div class="brand">
+            <div class="brand-icon">☁</div>
+            <div>
+                <div class="brand-name">CloudBridge</div>
+                <div class="brand-tagline">Your devices, connected.</div>
+            </div>
+        </div>
 
-    <label for="recipient">Recipient email</label>
-    <input
-        id="recipient"
-        type="email"
-        placeholder="recipient@example.com"
-    >
+        <div class="eyebrow">QUICK TRANSFER</div>
 
-    <button id="chooseBtn">Choose File</button>
+        <section class="content-card">
 
-    <label>Selected file</label>
-    <div id="fileName">No file selected</div>
+            <div class="field">
+                <label for="recipient">Recipient email</label>
+                <input id="recipient" type="email" placeholder="recipient@example.com">
+            </div>
 
-    <label for="expires">Link expiry</label>
-    <select id="expires">
-        <option value="1">1 hour</option>
-        <option value="6">6 hours</option>
-        <option value="24" selected>24 hours</option>
-        <option value="72">3 days</option>
-        <option value="168">7 days</option>
-    </select>
+            <div class="field">
+                <label>Selected file</label>
+                <div class="file-box">
+                    <div class="file-icon">▧</div>
+                    <div id="fileName">No file selected</div>
+                </div>
+            </div>
 
-    <button id="sendFileBtn" disabled>Send File</button>
+            <div class="field">
+                <button id="chooseBtn">Choose File +</button>
+            </div>
 
-    <button id="closeBtn">Close</button>
+            <div class="field">
+                <label for="expires">Link expiry</label>
+                <select id="expires">
+                    <option value="1">1 hour</option>
+                    <option value="6">6 hours</option>
+                    <option value="24" selected>24 hours</option>
+                    <option value="72">3 days</option>
+                    <option value="168">7 days</option>
+                </select>
+            </div>
 
-    <p id="status" role="status"></p>
+            <div class="actions">
+                <button id="sendFileBtn" disabled>Send File ↗</button>
+                <button id="closeBtn">Cancel</button>
+            </div>
+
+            <p id="status" role="status"></p>
+
+        </section>
+
+    </main>
 
     <script src="./file-share-popup-renderer.js"></script>
 
 </body>
+
 </html>

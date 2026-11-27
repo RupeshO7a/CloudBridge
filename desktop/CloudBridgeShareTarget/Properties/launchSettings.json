@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "CloudBridgeShareTarget (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "CloudBridgeShareTarget (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

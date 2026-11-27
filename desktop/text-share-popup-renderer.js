@@ -16,10 +16,25 @@ let current = {
 
 // Receive clipboard content from main.js
 ipcRenderer.on("clipboard-content", (_event, data) => {
-    current = data || { text: "", type: "text" };
+    console.log("DEBUG clipboard-content received:", data);
+    console.log("DEBUG received text type:", typeof data?.text);
 
-    preview.value = current.text || "";
+    const receivedText = typeof data === "string"
+        ? data
+        : data?.text;
+
+    current = {
+        text: typeof receivedText === "string" ? receivedText : "",
+        type: data?.type || "text"
+    };
+
+    preview.value = current.text;
     status.textContent = "";
+
+    if (receivedText != null && typeof receivedText !== "string") {
+        console.error("Invalid clipboard text received:", receivedText);
+        status.textContent = "Clipboard data format is invalid.";
+    }
 });
 
 // Send text or URL

@@ -28,14 +28,21 @@ const { supabase, login } = require("./firebase");
 
 const store = new Store();
 
-const API_URL = process.env.API_URL;
-const SOCKET_URL = process.env.SOCKET_URL;
+const API_URL =
+    process.env.API_URL ||
+    "https://cloudbridge-backend.onrender.com/api";
+
+const SOCKET_URL =
+    process.env.SOCKET_URL ||
+    "https://cloudbridge-backend.onrender.com";
+
 const PROTOCOL = "cloudbridge";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 let tray = null;
 let loginWindow = null;
+let dashboardWindow = null;
 let sharePopup = null;
 let sharePopupMode = null;
 let lastClipboardText = "";
@@ -106,10 +113,14 @@ function showLoginWindow() {
     }
 
     loginWindow = new BrowserWindow({
-        width: 360,
-        height: 390,
+        width: 440,
+        height: 600,
+        minWidth: 440,
+        minHeight: 600,
         resizable: false,
         show: false,
+        autoHideMenuBar: true,
+        backgroundColor: "#211625",
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -238,6 +249,73 @@ function handleOAuthCallback(callbackUrl) {
         deliverCode();
     }
 }
+
+
+function handleProtocolUrl(callbackUrl) {
+    if (
+        typeof callbackUrl !== "string" ||
+        !callbackUrl.startsWith(`${PROTOCOL}://`)
+    ) {
+        return null;
+    }
+
+    let parsed;
+
+    try {
+        parsed = new URL(callbackUrl);
+    } catch (error) {
+        console.error("CloudBridge: Invalid protocol URL:", error);
+        return null;
+    }
+
+    // Windows Share Target handoff
+    if (parsed.hostname.toLowerCase() === "share") {
+        const filePath = parsed.searchParams.get("file");
+
+        if (!filePath) {
+            console.error("CloudBridge: Share URL has no file path.");
+            return "share";
+        }
+
+        try {
+            const resolvedPath = path.resolve(filePath);
+
+            if (!fs.existsSync(resolvedPath)) {
+                throw new Error("The shared file does not exist.");
+            }
+
+            const stats = fs.statSync(resolvedPath);
+
+            if (!stats.isFile()) {
+                throw new Error("The shared item is not a file.");
+            }
+
+            if (stats.size === 0 || stats.size > MAX_FILE_SIZE) {
+                throw new Error("The file must be between 1 byte and 50 MB.");
+            }
+
+            console.log(
+                "CloudBridge: Windows Share Target file received:",
+                resolvedPath
+            );
+
+            showFileSharePopup(resolvedPath);
+        } catch (error) {
+            console.error(
+                "CloudBridge: Share Target handoff failed:",
+                error
+            );
+        }
+
+        return "share";
+    }
+
+    // Preserve existing Google OAuth handling
+    handleOAuthCallback(callbackUrl);
+
+    return "auth";
+}
+
 // ---------- Detect files opened from Windows File Explorer ----------
 
 function getExternalFilePath(args) {
@@ -271,6 +349,8 @@ function getExternalFilePath(args) {
 
     return null;
 }
+
+
 // ---------- Single-instance and protocol registration ----------
 
 const gotLock = app.requestSingleInstanceLock();
@@ -280,33 +360,42 @@ if (!gotLock) {
 } else {
     app.on("second-instance", (_event, commandLine) => {
         console.log("CloudBridge: second instance detected");
-        const externalFilePath = getExternalFilePath(commandLine);
 
-        if (externalFilePath) {
-            console.log("CloudBridge: File Explorer file received:", externalFilePath);
-            showFileSharePopup(externalFilePath);
-        }
-
-        const callbackUrl = commandLine.find(
+        const protocolUrl = commandLine.find(
             (arg) =>
                 typeof arg === "string" &&
                 arg.startsWith(`${PROTOCOL}://`)
         );
 
-        if (callbackUrl) {
-            console.log("CloudBridge: OAuth callback received");
-            handleOAuthCallback(callbackUrl);
+        const protocolAction = protocolUrl
+            ? handleProtocolUrl(protocolUrl)
+            : null;
+
+        const externalFilePath = getExternalFilePath(commandLine);
+
+        if (externalFilePath) {
+            console.log(
+                "CloudBridge: File Explorer file received:",
+                externalFilePath
+            );
+
+            showFileSharePopup(externalFilePath);
         }
 
-        if (loginWindow && !loginWindow.isDestroyed()) {
-            if (loginWindow.isMinimized()) {
-                loginWindow.restore();
-            }
+        // Do not bring the login window over the file-sharing popup.
+        if (protocolAction !== "share") {
+            if (loginWindow && !loginWindow.isDestroyed()) {
+                if (loginWindow.isMinimized()) {
+                    loginWindow.restore();
+                }
 
-            loginWindow.show();
-            loginWindow.focus();
-        } else {
-            console.log("CloudBridge: login window is not available");
+                loginWindow.show();
+                loginWindow.focus();
+            } else {
+                console.log(
+                    "CloudBridge: login window is not available"
+                );
+            }
         }
     });
 
@@ -315,9 +404,13 @@ if (!gotLock) {
 
         console.log("CloudBridge: open-url event received");
 
-        handleOAuthCallback(url);
+        const protocolAction = handleProtocolUrl(url);
 
-        if (loginWindow && !loginWindow.isDestroyed()) {
+        if (
+            protocolAction !== "share" &&
+            loginWindow &&
+            !loginWindow.isDestroyed()
+        ) {
             loginWindow.show();
             loginWindow.focus();
         }
@@ -407,6 +500,7 @@ ipcMain.handle("exchange-oauth-code", async (_event, code) => {
         }
 
         startApp();
+        showDashboardWindow();
 
         console.log("CloudBridge: startApp() completed.");
 
@@ -420,6 +514,36 @@ ipcMain.handle("exchange-oauth-code", async (_event, code) => {
         return {
             ok: false,
             error: error.message || "Google sign-in failed.",
+        };
+    }
+});
+
+// ---------- Email and password login ----------
+
+ipcMain.handle("login", async (_event, { email, password }) => {
+    try {
+        const token = await login(email, password);
+
+        store.set("token", token);
+        store.set("email", email);
+
+        console.log("CloudBridge: email login succeeded.");
+
+        if (loginWindow && !loginWindow.isDestroyed()) {
+            loginWindow.close();
+        }
+
+        startApp();
+        showDashboardWindow();
+
+        return { ok: true };
+
+    } catch (error) {
+        console.error("Email login failed:", error);
+
+        return {
+            ok: false,
+            error: error.message || "Login failed.",
         };
     }
 });
@@ -450,7 +574,78 @@ function startApp() {
     }
 }
 
+function refreshTrayMenu() {
+    if (!tray || tray.isDestroyed()) return;
 
+    const pendingItems = Array.from(pendingIncomingShares.values()).map(
+        (share) => ({
+            label: `${share.senderEmail || "A user"} — ${share.contentType === "file"
+                ? share.fileName || "File"
+                : share.contentType || "Content"
+                }`,
+            click: () => showIncomingSharePopup(share),
+        })
+    );
+
+    const menu = Menu.buildFromTemplate([
+        {
+            label: `Logged in as ${store.get("email") || "User"}`,
+            enabled: false,
+        },
+        {
+            label: "Open Dashboard",
+            click: () => showDashboardWindow(),
+        },
+        { type: "separator" },
+        {
+            label: `Pending Incoming Shares (${pendingItems.length})`,
+            enabled: false,
+        },
+        ...(pendingItems.length > 0
+            ? pendingItems
+            : [{ label: "No pending shares", enabled: false }]),
+        { type: "separator" },
+        {
+            label: "Share clipboard",
+            click: async () => {
+                const clipboardValue = await clipboard.readText();
+
+                const text =
+                    typeof clipboardValue === "string" && clipboardValue.trim()
+                        ? clipboardValue
+                        : lastClipboardText;
+
+                if (typeof text !== "string" || !text.trim()) {
+                    showError(
+                        "CloudBridge",
+                        "No clipboard text detected. Copy text and try again."
+                    );
+                    return;
+                }
+
+                showTextSharePopup(text);
+            },
+        },
+        {
+            label: "Share a file",
+            click: () => showFileSharePopup(),
+        },
+        {
+            label: "Open sync folder",
+            click: () => shell.openPath(getSyncFolder()),
+        },
+        { type: "separator" },
+        {
+            label: "Quit",
+            click: () => {
+                isQuitting = true;
+                app.quit();
+            },
+        },
+    ]);
+
+    tray.setContextMenu(menu);
+}
 
 function buildTray() {
     const iconPath = path.join(__dirname, "icon.png");
@@ -462,62 +657,8 @@ function buildTray() {
 
     try {
         tray = new Tray(iconPath);
-
-        const menu = Menu.buildFromTemplate([
-            {
-                label: `Logged in as ${store.get("email") || "User"}`,
-                enabled: false,
-            },
-            {
-                label: "Share clipboard",
-                click: () => {
-                    const clipboardValue = clipboard.readText();
-
-                    const text =
-                        typeof clipboardValue === "string" && clipboardValue.trim()
-                            ? clipboardValue
-                            : lastClipboardText;
-
-                    if (typeof text !== "string" || !text.trim()) {
-                        showError(
-                            "CloudBridge",
-                            "No clipboard text detected. Copy text and try again."
-                        );
-                        return;
-                    }
-
-                    console.log(
-                        "CloudBridge: opening clipboard share popup. Characters:",
-                        text.length
-                    );
-
-                    showTextSharePopup(text);
-                },
-            },
-            {
-                label: "Share a file",
-                click: () => {
-                    showFileSharePopup();
-                },
-            },
-            {
-                label: "Open sync folder",
-                click: () => {
-                    shell.openPath(getSyncFolder());
-                },
-            },
-            {
-                label: "Quit",
-                click: () => {
-                    isQuitting = true;
-                    app.quit();
-                },
-            },
-        ]);
-
         tray.setToolTip("CloudBridge — running");
-        tray.setContextMenu(menu);
-
+        refreshTrayMenu();
     } catch (error) {
         console.error("Could not create system tray:", error);
         showError("CloudBridge", error.message);
@@ -598,98 +739,51 @@ function showTextSharePopup(text) {
 
 // ---------- File sharing popup ----------
 
-// ---------- File sharing popup ----------
-
 function showFileSharePopup(filePath = null) {
+    // Store the selected file path, if one was supplied.
+    selectedOutgoingFilePath = filePath || null;
 
-    // If a file path came from Windows File Explorer,
-    // validate it and prepare it for sharing.
-    if (filePath) {
-        try {
-            if (!fs.existsSync(filePath)) {
-                throw new Error("The selected file does not exist.");
-            }
-
-            const fileStats = fs.statSync(filePath);
-
-            if (!fileStats.isFile()) {
-                throw new Error("Please select a valid file.");
-            }
-
-            if (fileStats.size === 0) {
-                throw new Error("The selected file is empty.");
-            }
-
-            if (fileStats.size > MAX_FILE_SIZE) {
-                throw new Error("File size exceeds the 50 MB limit.");
-            }
-
-            selectedOutgoingFilePath = filePath;
-
-            console.log(
-                "CloudBridge: File received from File Explorer:",
-                path.basename(filePath)
-            );
-
-        } catch (error) {
-            console.error("External file selection failed:", error);
-
-            dialog.showErrorBox(
-                "CloudBridge",
-                error.message || "Could not select the file."
-            );
-
-            return;
-        }
-    }
-
-    // Reuse the existing file popup if it is already open.
-    if (
-        sharePopup &&
-        !sharePopup.isDestroyed() &&
-        sharePopupMode === "file"
-    ) {
-        if (filePath) {
-            sharePopup.webContents.send("external-file-selected", {
-                fileName: path.basename(filePath)
-            });
-        }
-
-        sharePopup.show();
-        sharePopup.focus();
-
-        return;
-    }
-
+    // Close any existing share popup.
     if (sharePopup && !sharePopup.isDestroyed()) {
         sharePopup.close();
     }
 
-    createSharePopup("file", "");
+    // Open the file-sharing popup.
+    return createSharePopup("file");
 }
 
-// ---------- Create the correct popup ----------
-
 function createSharePopup(mode, text) {
-
     const display = screen.getPrimaryDisplay();
-    const { width, height } = display.workAreaSize;
+    const bounds = display.workArea;
+
+    const popupWidth = Math.min(360, bounds.width - 20);
+    const popupHeight = Math.min(
+        mode === "file" ? 490 : 440,
+        bounds.height - 20
+    );
+
+    const popupX = bounds.x + bounds.width - popupWidth - 10;
+    const popupY = bounds.y + bounds.height - popupHeight - 10;
 
     const popupWindow = new BrowserWindow({
-        width: 340,
-        height: 420,
-        x: Math.max(0, width - 360),
-        y: Math.max(0, height - 450),
+        width: popupWidth,
+        height: popupHeight,
+        x: popupX,
+        y: popupY,
+        minWidth: popupWidth,
+        minHeight: popupHeight,
+        maxWidth: popupWidth,
+        maxHeight: popupHeight,
         frame: false,
         resizable: false,
         alwaysOnTop: true,
         skipTaskbar: true,
+        autoHideMenuBar: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
         },
     });
-
     sharePopup = popupWindow;
     sharePopupMode = mode;
 
@@ -700,14 +794,12 @@ function createSharePopup(mode, text) {
         }
     });
 
-    // Load a different HTML file for each sharing mode.
     const popupFile = mode === "text"
         ? "text-share-popup.html"
         : "file-share-popup.html";
 
     popupWindow.loadFile(path.join(__dirname, popupFile))
         .then(() => {
-
             if (popupWindow.isDestroyed()) return;
 
             if (mode === "text") {
@@ -722,11 +814,12 @@ function createSharePopup(mode, text) {
                     fileName: path.basename(selectedOutgoingFilePath)
                 });
             }
-
         })
-        .catch((error) => {
+        .catch(error => {
             console.error("Share popup failed to load:", error);
         });
+
+    return popupWindow;
 }
 
 // ---------- Send text or URL share ----------
@@ -965,30 +1058,51 @@ ipcMain.on("dismiss-popup", () => {
 
 // ---------- Incoming share popup ----------
 
+
+// ---------- Incoming share popup ----------
+
 let incomingShareWindows = new Map();
+let pendingIncomingShares = new Map();
 
 function showIncomingSharePopup(share) {
     if (!share || !share.id) return;
 
+    // Keep every incoming share available until accepted or declined.
+    pendingIncomingShares.set(share.id, share);
+
     const existing = incomingShareWindows.get(share.id);
 
     if (existing && !existing.isDestroyed()) {
+        existing.show();
         existing.focus();
         return;
     }
 
     const display = screen.getPrimaryDisplay();
-    const { width, height } = display.workAreaSize;
+    const { x, y, width, height } = display.workArea;
+
+    const popupWidth = 390;
+    const popupHeight = 170;
 
     const win = new BrowserWindow({
-        width: 390,
-        height: 300,
-        x: Math.max(0, width - 410),
-        y: Math.max(0, height - 330),
-        frame: true,
+        width: popupWidth,
+        height: popupHeight,
+
+        x: Math.max(x, x + width - popupWidth - 20),
+        y: Math.max(y, y + height - popupHeight - 20),
+
+        frame: false,
+        transparent: true,
+        backgroundColor: "#00000000",
+        hasShadow: true,
+
         title: "Incoming CloudBridge Share",
         resizable: false,
+        movable: true,
         alwaysOnTop: true,
+        skipTaskbar: true,
+        show: false,
+
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -999,6 +1113,16 @@ function showIncomingSharePopup(share) {
 
     win.on("closed", () => {
         incomingShareWindows.delete(share.id);
+
+        // Do not delete pendingIncomingShares here.
+        // Closing the notification must not discard the pending share.
+    });
+
+    win.once("ready-to-show", () => {
+        if (!win.isDestroyed()) {
+            win.show();
+            win.focus();
+        }
     });
 
     win.loadFile(path.join(__dirname, "incoming-share.html"))
@@ -1013,6 +1137,30 @@ function showIncomingSharePopup(share) {
 }
 
 
+// Resize between compact and expanded notification states.
+ipcMain.on("resize-incoming-share", (event, expanded) => {
+    for (const win of incomingShareWindows.values()) {
+        if (!win.isDestroyed() && win.webContents === event.sender) {
+            const display = screen.getDisplayMatching(win.getBounds());
+            const { x, y, width, height } = display.workArea;
+
+            const popupWidth = 390;
+            const popupHeight = expanded ? 370 : 170;
+
+            win.setBounds({
+                x: Math.max(x, x + width - popupWidth - 20),
+                y: Math.max(y, y + height - popupHeight - 20),
+                width: popupWidth,
+                height: popupHeight,
+            });
+
+            break;
+        }
+    }
+});
+
+
+// Respond to an incoming share.
 ipcMain.handle(
     "respond-to-incoming-share",
     async (_event, { shareId, action }) => {
@@ -1088,7 +1236,6 @@ ipcMain.handle(
                     });
 
                 } else {
-                    // Text and URL shares do not need a separate download.
                     await saveToSyncFolder(shareData);
                 }
             }
@@ -1098,10 +1245,7 @@ ipcMain.handle(
             return { ok: true };
 
         } catch (error) {
-            console.error(
-                "Incoming share response failed:",
-                error
-            );
+            console.error("Incoming share response failed:", error);
 
             return {
                 ok: false,
@@ -1111,15 +1255,31 @@ ipcMain.handle(
     }
 );
 
+
+// Close only the notification window.
+// Keep the share in pendingIncomingShares.
 ipcMain.on("close-incoming-share", (event) => {
-    for (const [id, win] of incomingShareWindows.entries()) {
+    for (const win of incomingShareWindows.values()) {
         if (!win.isDestroyed() && win.webContents === event.sender) {
             win.close();
-            incomingShareWindows.delete(id);
             break;
         }
     }
 });
+
+
+// Called after Accept or Decline succeeds.
+ipcMain.on("complete-incoming-share", (event) => {
+    for (const [id, win] of incomingShareWindows.entries()) {
+        if (!win.isDestroyed() && win.webContents === event.sender) {
+            pendingIncomingShares.delete(id);
+            refreshTrayMenu();
+            win.close();
+            break;
+        }
+    }
+});
+
 
 // ---------- Real-time incoming shares ----------
 
@@ -1131,11 +1291,31 @@ function connectSocket() {
     socket = io(SOCKET_URL);
 
     socket.on("connect", () => {
+        console.log("[CloudBridge] Socket connected:", socket.id);
+
         const token = store.get("token");
 
-        if (token) {
-            socket.emit("register", token);
+        if (!token) {
+            console.error("[CloudBridge] No login token found.");
+            return;
         }
+
+        console.log("[CloudBridge] Sending registration request...");
+        socket.emit("register", token);
+    });
+
+    socket.on("register:success", (data) => {
+        console.log(
+            "[CloudBridge] Registration successful. User ID:",
+            data.userId
+        );
+    });
+
+    socket.on("register:error", (data) => {
+        console.error(
+            "[CloudBridge] Registration failed:",
+            data.error
+        );
     });
 
     socket.on("share:incoming", (share) => {
@@ -1146,6 +1326,7 @@ function connectSocket() {
         );
 
         showIncomingSharePopup(share);
+        refreshTrayMenu();
 
         const notification = new Notification({
             title: "CloudBridge",
@@ -1293,6 +1474,7 @@ async function saveToSyncFolder(share) {
     console.log("CloudBridge: file saved successfully:", savedName);
 }
 
+
 // ---------- Application startup ----------
 
 app.whenReady().then(() => {
@@ -1310,34 +1492,239 @@ app.whenReady().then(() => {
         app.setAsDefaultProtocolClient(PROTOCOL);
     }
 
-    const callbackUrl = process.argv.find(
+    const protocolUrl = process.argv.find(
         (arg) =>
             typeof arg === "string" &&
             arg.startsWith(`${PROTOCOL}://`)
     );
 
-    if (callbackUrl) {
-        handleOAuthCallback(callbackUrl);
-    }
-    // Check whether CloudBridge was launched with a file from File Explorer.
     const externalFilePath = getExternalFilePath(process.argv);
 
-    if (externalFilePath) {
+    // Share activation should not open the login window.
+    if (protocolUrl) {
         console.log(
-            "CloudBridge: Initial file received from File Explorer:",
+            "CloudBridge startup: share protocol detected"
+        );
+
+        setTimeout(() => {
+            handleProtocolUrl(protocolUrl);
+        }, 1500);
+
+    } else if (externalFilePath) {
+        console.log(
+            "CloudBridge startup: external file detected:",
             externalFilePath
         );
-    }
 
-    console.log("CloudBridge startup: opening login window");
-
-    showLoginWindow();
-    if (externalFilePath) {
         setTimeout(() => {
             showFileSharePopup(externalFilePath);
         }, 1500);
+
+    } else {
+        // Normal application launch.
+        console.log(
+            "CloudBridge startup: opening login window"
+        );
+
+        showLoginWindow();
     }
 });
+
+// ---------- Main dashboard window ----------
+
+function showDashboardWindow() {
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+        if (dashboardWindow.isMinimized()) {
+            dashboardWindow.restore();
+        }
+
+        dashboardWindow.show();
+        dashboardWindow.focus();
+        return;
+    }
+
+    dashboardWindow = new BrowserWindow({
+        width: 1440,
+        height: 900,
+        minWidth: 1000,
+        minHeight: 680,
+        show: false,
+        autoHideMenuBar: true,
+        backgroundColor: "#17101C",
+        title: "CloudBridge",
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+        },
+    });
+
+    dashboardWindow.once("ready-to-show", () => {
+        if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+            dashboardWindow.show();
+            dashboardWindow.focus();
+        }
+    });
+
+    dashboardWindow.on("close", (event) => {
+        if (!isQuitting) {
+            event.preventDefault();
+            dashboardWindow.hide();
+        }
+    });
+
+    dashboardWindow.on("closed", () => {
+        dashboardWindow = null;
+    });
+
+    dashboardWindow.loadFile(
+        path.join(__dirname, "dashboard.html")
+    ).catch((error) => {
+        console.error("Dashboard failed to load:", error);
+        showError("CloudBridge Dashboard", error.message);
+    });
+}
+
+// ---------- Dashboard IPC integration ----------
+
+ipcMain.handle("dashboard:get-account-info", async () => {
+    return {
+        email: store.get("email") || "User",
+    };
+});
+// ---------- Dashboard: fetch live transfer history ----------
+
+ipcMain.handle("dashboard:get-shares", async () => {
+    try {
+        const token = store.get("token");
+
+        if (!token) {
+            throw new Error("Please log in again.");
+        }
+
+        const response = await fetch(
+            `${API_URL.replace(/\/$/, "")}/shares`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Could not load transfer history."
+            );
+        }
+
+        return {
+            ok: true,
+            sent: data.sent || [],
+            received: data.received || [],
+        };
+
+    } catch (error) {
+        console.error(
+            "Dashboard share history failed:",
+            error
+        );
+
+        return {
+            ok: false,
+            error: error.message || "Could not load transfer history.",
+            sent: [],
+            received: [],
+        };
+    }
+});
+
+ipcMain.handle("dashboard:action", async (_event, action) => {
+    try {
+        switch (action) {
+            case "clipboard": {
+                const text = await clipboard.readText();
+
+                console.log("CLIPBOARD BUTTON CLICKED");
+                console.log("Clipboard value:", text);
+                console.log("Clipboard type:", typeof text);
+
+                if (typeof text !== "string" || !text.trim()) {
+                    throw new Error(
+                        "Your clipboard is empty or does not contain text."
+                    );
+                }
+
+                showTextSharePopup(text);
+
+                console.log("Text sharing popup requested.");
+
+                return { ok: true };
+            }
+
+            case "url": {
+                const text = await clipboard.readText();
+
+                if (typeof text !== "string" || !text.trim()) {
+                    throw new Error("Copy a URL first, then try again.");
+                }
+
+                showTextSharePopup(text);
+                return { ok: true };
+            }
+
+            case "select-file":
+                showFileSharePopup();
+                return { ok: true };
+
+            case "open-sync": {
+                const result = await shell.openPath(getSyncFolder());
+
+                if (result) {
+                    throw new Error(result);
+                }
+
+                return { ok: true };
+            }
+
+            default:
+                return {
+                    ok: false,
+                    error: "This dashboard action is not connected yet.",
+                };
+        }
+    } catch (error) {
+        console.error("Dashboard action failed:", error);
+
+        return {
+            ok: false,
+            error: error.message || "Could not complete the action.",
+        };
+    }
+});
+
+ipcMain.handle("dashboard:window", async (_event, action) => {
+    if (!dashboardWindow || dashboardWindow.isDestroyed()) {
+        return { ok: false };
+    }
+
+    if (action === "minimize") {
+        dashboardWindow.minimize();
+    } else if (action === "maximize") {
+        if (dashboardWindow.isMaximized()) {
+            dashboardWindow.unmaximize();
+        } else {
+            dashboardWindow.maximize();
+        }
+    } else if (action === "hide") {
+        dashboardWindow.hide();
+    }
+
+    return { ok: true };
+});
+
+// ---------- Application lifecycle ----------
 
 app.on("before-quit", () => {
     isQuitting = true;
@@ -1353,8 +1740,11 @@ app.on("before-quit", () => {
     }
 });
 
+// Keep CloudBridge running in the system tray
+// when all application windows are closed.
 app.on("window-all-closed", (event) => {
     if (!isQuitting) {
         event.preventDefault();
     }
 });
+

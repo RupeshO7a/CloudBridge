@@ -1,61 +1,302 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<style>
-    body {
-        font-family: "Segoe UI", sans-serif;
-        background: #0f172a;
-        color: #f8fafc;
-        padding: 20px;
-        margin: 0;
-    }
-    h2 { margin: 0 0 8px; font-size: 19px; }
-    .muted { color: #94a3b8; font-size: 13px; }
-    .panel {
-        background: #1e293b;
-        border-radius: 8px;
-        padding: 12px;
-        margin: 16px 0;
-        overflow-wrap: anywhere;
-    }
-    #preview {
-        max-height: 110px;
-        overflow: auto;
-        white-space: pre-wrap;
-        font-size: 13px;
-    }
-    .actions { display: flex; gap: 10px; }
-    button {
-        flex: 1;
-        border: 0;
-        border-radius: 7px;
-        padding: 11px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-    #acceptBtn { background: #16a34a; color: white; }
-    #declineBtn { background: #334155; color: white; }
-    button:disabled { opacity: .5; cursor: wait; }
-    #status { margin-top: 12px; font-size: 12px; color: #cbd5e1; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBridge - Incoming Share</title>
+
+    <style>
+        :root {
+            --violet: #502D55;
+            --rose: #935073;
+            --peach: #F6DBC0;
+            --cream: #F8F4E9;
+            --muted: #D8C6D8;
+            --bg: #17101C;
+            --panel: #211625;
+            --card: #302238;
+            --line: rgba(248, 244, 233, .13);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            padding: 9px;
+            background: transparent;
+            color: var(--cream);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .notification {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid rgba(246, 219, 192, .2);
+            border-radius: 13px;
+            background:
+                radial-gradient(circle at top right,
+                    rgba(147, 80, 115, .17), transparent 48%),
+                var(--bg);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, .4);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo {
+            width: 37px;
+            height: 37px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--rose), var(--violet));
+            color: var(--peach);
+            font-family: Georgia, serif;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .heading {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .heading h2 {
+            margin: 0 0 3px;
+            font-family: Georgia, serif;
+            font-size: 17px;
+        }
+
+        .heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .icon-button {
+            width: 29px;
+            height: 29px;
+            flex-shrink: 0;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--card);
+            color: var(--peach);
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .icon-button:hover {
+            background: var(--rose);
+        }
+
+        .compact-preview {
+            margin-top: 12px;
+            padding: 11px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--panel);
+            cursor: pointer;
+        }
+
+        .compact-preview p {
+            margin: 0;
+            color: var(--cream);
+            font-size: 12px;
+            line-height: 1.5;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .expand-hint {
+            margin-top: 7px;
+            color: #D99CBE;
+            font-size: 10px;
+            text-align: right;
+        }
+
+        #expandedContent {
+            display: none;
+        }
+
+        .notification.expanded #expandedContent {
+            display: block;
+        }
+
+        .notification.expanded .compact-preview {
+            cursor: default;
+        }
+
+        .section-label {
+            margin: 13px 0 7px;
+            color: #D99CBE;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #preview {
+            min-height: 55px;
+            max-height: 90px;
+            margin: 0;
+            padding: 10px;
+            overflow-y: auto;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: var(--bg);
+            color: var(--cream);
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .actions button {
+            flex: 1;
+            min-width: 0;
+            padding: 11px 8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #acceptBtn {
+            background: var(--peach);
+            color: #281B30;
+        }
+
+        #acceptBtn:hover {
+            background: #FFE7D1;
+        }
+
+        #declineBtn {
+            background: rgba(147, 80, 115, .17);
+            border-color: rgba(147, 80, 115, .35);
+            color: var(--cream);
+        }
+
+        #declineBtn:hover {
+            background: var(--rose);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: wait;
+        }
+
+        #status {
+            min-height: 0;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-height: 300px) {
+            .notification {
+                padding: 9px;
+            }
+
+            .compact-preview {
+                margin-top: 7px;
+                padding: 7px;
+            }
+
+            .section-label {
+                margin-top: 7px;
+            }
+
+            #preview {
+                max-height: 55px;
+            }
+
+            .actions {
+                margin-top: 7px;
+            }
+        }
+    </style>
 </head>
+
 <body>
-    <h2>Incoming CloudBridge share</h2>
-    <div class="muted" id="sender">Someone wants to share with you</div>
 
-    <div class="panel">
-        <div class="muted" id="kind">Shared content</div>
-        <p id="preview">Loading share details...</p>
-    </div>
+    <main class="notification" id="notification">
 
-    <div class="actions">
-        <button id="acceptBtn">Accept</button>
-        <button id="declineBtn">Decline</button>
-    </div>
+        <div class="topbar">
 
-    <div id="status" role="status"></div>
+            <div class="logo">C</div>
+
+            <div class="heading">
+                <h2>Incoming share</h2>
+                <p id="sender">Someone wants to share with you</p>
+            </div>
+
+            <button class="icon-button" id="expandBtn" title="Expand notification">⌄</button>
+
+            <button class="icon-button" id="closeBtn" title="Dismiss notification">×</button>
+
+        </div>
+
+        <div class="compact-preview" id="compactPreview">
+
+            <p id="compactText">Loading share details...</p>
+
+            <div class="expand-hint" id="expandHint">
+                Click to view details
+            </div>
+
+        </div>
+
+        <section id="expandedContent">
+
+            <div class="section-label" id="kind">
+                Shared content
+            </div>
+
+            <p id="preview">Loading share details...</p>
+
+            <div class="actions">
+                <button id="acceptBtn">Accept share</button>
+                <button id="declineBtn">Decline</button>
+            </div>
+
+            <div id="status" role="status"></div>
+
+        </section>
+
+    </main>
 
     <script src="./incoming-share-renderer.js"></script>
+
 </body>
+
 </html>
